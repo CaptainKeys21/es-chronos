@@ -33,7 +33,14 @@ export default class User {
     this.pwd_hash = bcrypt.hashSync(newPwd, this.saltRounds);
   }
 
-  public get password() {
-    return this.pwd_hash;
+  public checkPassword(pwd: string) {
+    return bcrypt.compareSync(pwd, this.pwd_hash);
+  }
+
+  public toJSON() {
+    return {
+      username: this.username,
+      email: this.email,
+    };
   }
 }

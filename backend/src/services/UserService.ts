@@ -11,11 +11,16 @@ export default class UserService {
     return this._instance;
   }
 
+  // Temporário, será usado como banco de dados
   private readonly users: User[] = [];
 
   private constructor() {}
 
   public createUser(user: User) {
     this.users.push(user);
+  }
+
+  public getUserByUsername(username: string) {
+    return this.users.find((u) => (u.username = username)) || null;
   }
 }
