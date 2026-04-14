@@ -14,6 +14,7 @@ export class UserRouter {
   private initRoutes() {
     // Mapeamento das rotas
     this.router.get("/:username", this.userController.getByUsername);
+    this.router.post("/login", this.userController.loginUser);
     this.router.post("/", this.userController.create);
   }
 }

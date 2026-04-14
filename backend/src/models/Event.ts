@@ -1,12 +1,15 @@
-export enum WeekDays {
-  Domingo = 0,
-  Segunda,
-  Terca,
-  Quarta,
-  Quinta,
-  Sexta,
-  Sabado,
-}
+export const WeekDays = {
+  Domingo: 0,
+  Segunda: 1,
+  Terca: 2,
+  Quarta: 3,
+  Quinta: 4,
+  Sexta: 5,
+  Sabado: 6,
+} as const;
+
+export type WeekDays = (typeof WeekDays)[keyof typeof WeekDays];
+
 export default class Event {
   private _name: string;
   private _date: Date;

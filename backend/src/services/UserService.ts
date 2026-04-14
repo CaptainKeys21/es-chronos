@@ -21,6 +21,6 @@ export default class UserService {
   }
 
   public getUserByUsername(username: string) {
-    return this.users.find((u) => (u.username = username)) || null;
+    return this.users.find((u) => u.username === username) || null;
   }
 }

@@ -21,12 +21,12 @@ class ProgressBar {
 
 export default class Task {
   private _name: string;
-  private _deadLine: Date;
+  private _deadline: Date;
   private readonly _progress: ProgressBar;
 
   constructor(name: string, deadline: Date) {
     this._name = name;
-    this._deadLine = deadline;
+    this._deadline = deadline;
     this._progress = new ProgressBar();
   }
 
@@ -39,11 +39,11 @@ export default class Task {
   }
 
   get deadline() {
-    return this._deadLine;
+    return this._deadline;
   }
 
-  set deadLine(newDL: Date) {
-    this._deadLine = newDL;
+  set deadline(newDL: Date) {
+    this._deadline = newDL;
   }
 
   get progress() {
@@ -61,7 +61,7 @@ export default class Task {
   public toJSON() {
     return {
       name: this.name,
-      deadline: this.deadLine.getTime(),
+      deadline: this.deadline.getTime(),
       progress: this.progress,
       isComplete: this.isComplete,
     };
