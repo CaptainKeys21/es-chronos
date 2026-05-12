@@ -33,7 +33,10 @@ export class TaskController {
     return res.status(200).json(taskData.toJSON());
   };
 
-  public create = (req: Request<{}, {}, CreateReqBody>, res: Response) => {
+  public create = (
+    req: Request<ReqParams, {}, CreateReqBody>,
+    res: Response,
+  ) => {
     const { username } = req;
 
     if (!username) return res.status(401).send("Unauthorized");
@@ -42,15 +45,20 @@ export class TaskController {
 
     if (!name) return res.status(400).send("Bad Request");
 
+    const { agenda } = req.params;
+
     const user = this.userService.getUserByUsername(username);
     if (!user) return res.status(404).send("User not found");
 
-    const agenda = this.agendaService.getAgendaByUsername(user);
-    if (!agenda) return res.status(404).send("Agenda not found");
+    const agendaData = this.agendaService.getAgendaByName(agenda);
+    if (!agendaData) return res.status(404).send("Agenda not found");
+
+    if (!agendaData.userCanEdit(user))
+      return res.status(401).send("Unauthorized");
 
     const task = new Task(name, new Date(date));
 
-    this.taskService.createTask(task, agenda);
+    this.taskService.createTask(task, agendaData);
 
     return res.status(201).send("Created");
   };
@@ -72,14 +80,14 @@ export class TaskController {
     const user = this.userService.getUserByUsername(username);
     if (!user) return res.status(404).send("User not found");
 
-    const eventData = this.taskService.getTaskByName(task, agendaData);
-    if (eventData === null) return res.status(404).send("Not Found");
+    const taskData = this.taskService.getTaskByName(task, agendaData);
+    if (taskData === null) return res.status(404).send("Not Found");
 
     if (!agendaData.userCanEdit(user))
       return res.status(401).send("Unauthorized");
 
-    const newEvent = new Task(name, new Date(date));
-    this.taskService.editTask(eventData, newEvent, agendaData);
+    const newTask = new Task(name, new Date(date));
+    this.taskService.editTask(taskData, newTask, agendaData);
 
     return res.status(200).send("OK");
   };

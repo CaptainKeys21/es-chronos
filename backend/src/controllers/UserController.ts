@@ -85,4 +85,31 @@ export class UserController {
       return res.status(401).json({ message: "Token inválido" });
     }
   };
+
+  public static optionalAuthMiddleware = (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return next();
+    }
+
+    // O padrão é "Bearer <TOKEN>"
+    const [, token] = authHeader.split(" ");
+
+    if (!token) return res.status(401).json({ message: "Token inválido" });
+
+    try {
+      const decoded = jwt.verify(token, this.JWT_Secret);
+      // Opcional: salvar os dados do usuário no objeto req para usar depois
+      (req as any).username = decoded;
+
+      return next(); // Token ok! Pode seguir para o controller
+    } catch (err) {
+      return res.status(401).json({ message: "Token inválido" });
+    }
+  };
 }

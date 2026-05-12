@@ -23,7 +23,11 @@ export class AgendaRouter {
 
   private initRoutes() {
     // Mapeamento das rotas
-    this.router.get("/:agenda", this.agendaController.getByName);
+    this.router.get(
+      "/:agenda",
+      UserController.optionalAuthMiddleware,
+      this.agendaController.getByName,
+    );
     this.router.post(
       "/",
       UserController.authMiddleware,

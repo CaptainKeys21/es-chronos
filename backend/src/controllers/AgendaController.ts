@@ -2,12 +2,17 @@ import type { Request, Response } from "express";
 import UserService from "../services/UserService.ts";
 import User from "../models/User.ts";
 import AgendaService from "../services/AgendaService.ts";
-import Agenda from "../models/Agenda.ts";
+import Agenda, {
+  Permission,
+  Visibility,
+  type Participant,
+} from "../models/Agenda.ts";
 
 type CreateReqBody = {
   name: string;
   timezone: string;
   participants?: string[];
+  visibility: number;
 };
 
 type ReqParams = {
@@ -19,6 +24,7 @@ export class AgendaController {
   private readonly agendaService = AgendaService.instance;
 
   public getByName = (req: Request<ReqParams>, res: Response) => {
+    const { username } = req;
     const { agenda } = req.params;
 
     if (typeof agenda !== "string") return res.status(400).send("Bad Request");
@@ -27,6 +33,12 @@ export class AgendaController {
 
     if (agendaData === null) return res.status(404).send("Not Found");
 
+    const userData = username
+      ? this.userService.getUserByUsername(username)
+      : null;
+    if (!agendaData.userCanSee(userData)) {
+      return res.status(401).send("Unauthorized");
+    }
     return res.status(200).json(agendaData.toJSON());
   };
 
@@ -35,7 +47,7 @@ export class AgendaController {
 
     if (!username) return res.status(401).send("Unauthorized");
 
-    const { name, timezone, participants } = req.body;
+    const { name, timezone, participants, visibility } = req.body;
 
     if (!name) return res.status(400).send("Bad Request");
 
@@ -43,19 +55,31 @@ export class AgendaController {
 
     if (!user) return res.status(404).send("User not found");
 
-    const userParticipants: User[] = [];
+    const userParticipants: Participant[] = [];
     if (participants) {
       participants.forEach((p) => {
         const up = this.userService.getUserByUsername(p);
-        if (up) userParticipants.push(up);
+        if (up)
+          userParticipants.push({
+            user: up,
+            permissions: [Permission.read, Permission.write],
+          });
       });
     }
 
-    const newAgenda = new Agenda(name, user, timezone, userParticipants);
+    const enumVis = visibility ? Visibility.private : Visibility.public;
+
+    const newAgenda = new Agenda(
+      name,
+      user,
+      timezone,
+      enumVis,
+      userParticipants,
+    );
 
     this.agendaService.createAgenda(newAgenda);
 
-    return res.status(201).send("Created");
+    return res.status(201).json(newAgenda);
   };
 
   public edit = (req: Request<ReqParams, {}, CreateReqBody>, res: Response) => {

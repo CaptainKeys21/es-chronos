@@ -19,9 +19,26 @@ class TimeZone {
   }
 }
 
+export enum Visibility {
+  public,
+  private,
+}
+
+export enum Permission {
+  read,
+  write,
+}
+
+export type Participant = {
+  user: User;
+  permissions: Permission[];
+};
+
 export default class Agenda {
   private _owner: User;
-  private readonly participants: User[] = [];
+  private readonly participants: Participant[] = [];
+
+  private _visibility: Visibility;
 
   private readonly tasks: Task[] = [];
   private readonly events: Event[] = [];
@@ -33,11 +50,13 @@ export default class Agenda {
     name: string,
     owner: User,
     timezone: string,
-    participants?: User[],
+    visibility: Visibility,
+    participants?: Participant[],
   ) {
     this._name = name;
     this._owner = owner;
     this._timeZone = new TimeZone(timezone);
+    this._visibility = visibility;
     console.log({ participants });
     if (participants) {
       participants.forEach((p) => this.addParticipant(p));
@@ -68,25 +87,65 @@ export default class Agenda {
     this._timeZone = new TimeZone(newTZ);
   }
 
-  userCanEdit(user: User) {
+  set visibility(visibility: Visibility) {
+    this._visibility = visibility;
+  }
+
+  private isUserParticipating(user: User) {
     return (
       this.owner.username === user.username ||
-      this.participants.some((u) => u.username === user.username)
+      this.participants.some((u) => u.user.username === user.username)
     );
   }
 
+  userCanEdit(user: User) {
+    if (!this.isUserParticipating(user)) return false;
+
+    const permissions = this.getUserPermissions(user);
+
+    if (!permissions || !permissions.includes(Permission.write)) return false;
+
+    return true;
+  }
+
+  userCanSee(user: User | null) {
+    if (this._visibility == Visibility.public) return true;
+    if (!user) return;
+
+    return this.isUserParticipating(user);
+  }
+
   findParticipant(user: User) {
-    return this.participants.find((u) => u.username === user.username) || null;
+    return (
+      this.participants.find((u) => u.user.username === user.username)?.user ||
+      null
+    );
+  }
+
+  private getUserPermissions(user: User) {
+    return (
+      this.participants.find((u) => u.user.username === user.username)
+        ?.permissions || null
+    );
   }
 
   findParticipantIndex(user: User) {
-    return this.participants.findIndex((u) => u.username === user.username);
+    return this.participants.findIndex(
+      (u) => u.user.username === user.username,
+    );
   }
 
-  addParticipant(user: User) {
+  addParticipantByUser(user: User, permissions: Permission[]) {
     if (this.findParticipant(user)) throw "Participante já está inserido";
 
-    this.participants.push(user);
+    this.participants.push({ user: user, permissions: permissions });
+  }
+
+  addParticipant(participant: Participant) {
+    if (this.findParticipant(participant.user))
+      throw "Participante já está inserido";
+
+    this.participants.push(participant);
   }
 
   removeParticipant(user: User) {
@@ -162,7 +221,7 @@ export default class Agenda {
       name: this.name,
       owner: this.owner.toJSON(),
       timezone: this.timeZone,
-      participants: this.participants.map((p) => p.toJSON()),
+      participants: this.participants,
       tasks: this.tasks.map((t) => t.toJSON()),
       events: this.events.map((e) => e.toJSON()),
     };
