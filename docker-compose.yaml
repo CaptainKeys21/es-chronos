@@ -1,0 +1,36 @@
+services:
+  api:
+    build:
+      context: backend
+      dockerfile: Dockerfile.dev
+    container_name: api_backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/usr/src/app
+      - /usr/src/app/node_modules
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASSWORD=chronos
+      - DB_NAME=chronos
+      - PORT=3000
+    depends_on:
+      - db
+    command: npm run dev
+
+  db:
+    image: postgres:16-alpine
+    container_name: db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=chronos
+      - POSTGRES_DB=chronos
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+volumes:
+  pg-data:

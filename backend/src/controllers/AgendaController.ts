@@ -2,17 +2,19 @@ import type { Request, Response } from "express";
 import UserService from "../services/UserService.ts";
 import User from "../models/User.ts";
 import AgendaService from "../services/AgendaService.ts";
-import Agenda, {
-  Permission,
-  Visibility,
-  type Participant,
-} from "../models/Agenda.ts";
+import Agenda, { Visibility } from "../models/Agenda.ts";
+import Participant, { Permission } from "../models/Participant.ts";
 
 type CreateReqBody = {
   name: string;
   timezone: string;
-  participants?: string[];
   visibility: number;
+};
+
+type ParticipantBody = {
+  username: string;
+  permissions: Permission[];
+  roles: string[];
 };
 
 type ReqParams = {
@@ -23,18 +25,18 @@ export class AgendaController {
   private readonly userService = UserService.instance;
   private readonly agendaService = AgendaService.instance;
 
-  public getByName = (req: Request<ReqParams>, res: Response) => {
+  public getByName = async (req: Request<ReqParams>, res: Response) => {
     const { username } = req;
     const { agenda } = req.params;
 
     if (typeof agenda !== "string") return res.status(400).send("Bad Request");
 
-    const agendaData = this.agendaService.getAgendaByName(agenda);
+    const agendaData = await this.agendaService.getAgendaByName(agenda);
 
     if (agendaData === null) return res.status(404).send("Not Found");
 
     const userData = username
-      ? this.userService.getUserByUsername(username)
+      ? await this.userService.getUserByUsername(username)
       : null;
     if (!agendaData.userCanSee(userData)) {
       return res.status(401).send("Unauthorized");
@@ -42,68 +44,222 @@ export class AgendaController {
     return res.status(200).json(agendaData.toJSON());
   };
 
-  public create = (req: Request<{}, {}, CreateReqBody>, res: Response) => {
+  public create = async (
+    req: Request<{}, {}, CreateReqBody>,
+    res: Response,
+  ) => {
     const { username } = req;
 
     if (!username) return res.status(401).send("Unauthorized");
 
-    const { name, timezone, participants, visibility } = req.body;
+    const { name, timezone, visibility } = req.body;
 
     if (!name) return res.status(400).send("Bad Request");
 
-    const user = this.userService.getUserByUsername(username);
+    const user = await this.userService.getUserByUsername(username);
 
     if (!user) return res.status(404).send("User not found");
 
-    const userParticipants: Participant[] = [];
-    if (participants) {
-      participants.forEach((p) => {
-        const up = this.userService.getUserByUsername(p);
-        if (up)
-          userParticipants.push({
-            user: up,
-            permissions: [Permission.read, Permission.write],
-          });
-      });
-    }
-
     const enumVis = visibility ? Visibility.private : Visibility.public;
 
-    const newAgenda = new Agenda(
-      name,
-      user,
-      timezone,
-      enumVis,
-      userParticipants,
-    );
+    const newAgenda = new Agenda(name, user, timezone, enumVis);
 
     this.agendaService.createAgenda(newAgenda);
 
     return res.status(201).json(newAgenda);
   };
 
-  public edit = (req: Request<ReqParams, {}, CreateReqBody>, res: Response) => {
+  public edit = async (
+    req: Request<ReqParams, {}, CreateReqBody>,
+    res: Response,
+  ) => {
     const { username } = req;
 
     if (!username) return res.status(401).send("Unauthorized");
 
-    const { name, timezone } = req.body;
+    const { name, timezone, visibility } = req.body;
 
     if (!name) return res.status(400).send("Bad Request");
 
     const { agenda } = req.params;
 
-    const user = this.userService.getUserByUsername(username);
+    const user = await this.userService.getUserByUsername(username);
 
     if (!user) return res.status(404).send("User not found");
 
-    const oldAgenda = this.agendaService.getAgendaByName(agenda);
+    const oldAgenda = await this.agendaService.getAgendaByName(agenda);
     if (oldAgenda === null) return res.status(404).send("Agenda Not Found");
 
     if (!oldAgenda.userCanEdit(user))
       return res.status(401).send("Unauthorized");
 
-    this.agendaService.editAgenda(oldAgenda, name, timezone);
+    const enumVis = visibility ? Visibility.private : Visibility.public;
+
+    await this.agendaService.editAgenda(oldAgenda, name, timezone, enumVis);
+
+    return res.status(200).send("OK");
+  };
+
+  public addParticipant = async (
+    req: Request<ReqParams, {}, ParticipantBody>,
+    res: Response,
+  ) => {
+    const { username: reqUsername } = req;
+    if (!reqUsername) return res.status(401).send("Unauthorized");
+
+    const { username, permissions, roles } = req.body;
+
+    if (!username || !permissions || !roles)
+      return res.status(400).send("Bad Request");
+
+    const user = await this.userService.getUserByUsername(reqUsername);
+    if (!user) return res.status(404).send("User not found");
+
+    const { agenda } = req.params;
+    const agendaData = await this.agendaService.getAgendaByName(agenda);
+    if (agendaData === null) return res.status(404).send("Agenda Not Found");
+
+    if (!agendaData.userCanEdit(user))
+      return res.status(401).send("Unauthorized");
+
+    const pUser = await this.userService.getUserByUsername(username);
+    if (!pUser) return res.status(400).send("Bad Request");
+
+    const newParticipant = new Participant(pUser, permissions, roles);
+
+    await this.agendaService.addParticipant(newParticipant, agendaData);
+
+    return res.status(200).send("OK");
+  };
+
+  public editParticipant = async (
+    req: Request<
+      ReqParams & { participant: string },
+      {},
+      Omit<ParticipantBody, "username">
+    >,
+    res: Response,
+  ) => {
+    const { username: reqUsername } = req;
+    if (!reqUsername) return res.status(401).send("Unauthorized");
+
+    const { permissions, roles } = req.body;
+
+    if (!permissions || !roles) return res.status(400).send("Bad Request");
+
+    const user = await this.userService.getUserByUsername(reqUsername);
+    if (!user) return res.status(404).send("User not found");
+
+    const { agenda, participant } = req.params;
+    const agendaData = await this.agendaService.getAgendaByName(agenda);
+    if (agendaData === null) return res.status(404).send("Agenda Not Found");
+
+    if (!agendaData.userCanEdit(user))
+      return res.status(401).send("Unauthorized");
+
+    const pUser = await this.userService.getUserByUsername(participant);
+    if (!pUser) return res.status(400).send("Bad Request");
+
+    const participantData = await this.agendaService.getParticipantByUser(
+      pUser,
+      agendaData,
+    );
+    if (!participantData) return res.status(404).send("Participant Not Found");
+
+    const updatedParticipant = new Participant(
+      pUser,
+      permissions,
+      roles,
+      participantData.id,
+    );
+
+    await this.agendaService.editParticipant(updatedParticipant, agendaData);
+
+    return res.status(200).send("OK");
+  };
+
+  public removeParticipant = async (
+    req: Request<ReqParams & { username: string }>,
+    res: Response,
+  ) => {
+    const { username: reqUsername } = req;
+    if (!reqUsername) return res.status(401).send("Unauthorized");
+
+    const { agenda, username } = req.params;
+
+    if (!username) return res.status(400).send("Bad Request");
+
+    const user = await this.userService.getUserByUsername(reqUsername);
+    if (!user) return res.status(404).send("User not found");
+
+    const agendaData = await this.agendaService.getAgendaByName(agenda);
+    if (agendaData === null) return res.status(404).send("Agenda Not Found");
+
+    if (!agendaData.userCanEdit(user))
+      return res.status(401).send("Unauthorized");
+
+    const pUser = await this.userService.getUserByUsername(username);
+    if (!pUser) return res.status(400).send("Bad Request");
+
+    await this.agendaService.removeParticipant(pUser, agendaData);
+
+    return res.status(200).send("OK");
+  };
+
+  public addRole = async (
+    req: Request<ReqParams, {}, { name: string }>,
+    res: Response,
+  ) => {
+    const { username } = req;
+
+    if (!username) return res.status(401).send("Unauthorized");
+
+    const { name } = req.body;
+
+    if (!name) return res.status(400).send("Bad Request");
+
+    const { agenda } = req.params;
+
+    const user = await this.userService.getUserByUsername(username);
+
+    if (!user) return res.status(404).send("User not found");
+
+    const agendaData = await this.agendaService.getAgendaByName(agenda);
+    if (agendaData === null) return res.status(404).send("Agenda Not Found");
+
+    if (!agendaData.userCanEdit(user))
+      return res.status(401).send("Unauthorized");
+
+    await this.agendaService.addRole(agendaData, name);
+
+    return res.status(200).send("OK");
+  };
+
+  public removeRole = async (
+    req: Request<ReqParams & { role: string }, {}, { name: string }>,
+    res: Response,
+  ) => {
+    const { username } = req;
+
+    if (!username) return res.status(401).send("Unauthorized");
+
+    const { name } = req.body;
+
+    if (!name) return res.status(400).send("Bad Request");
+
+    const { agenda, role } = req.params;
+
+    const user = await this.userService.getUserByUsername(username);
+
+    if (!user) return res.status(404).send("User not found");
+
+    const agendaData = await this.agendaService.getAgendaByName(agenda);
+    if (agendaData === null) return res.status(404).send("Agenda Not Found");
+
+    if (!agendaData.userCanEdit(user))
+      return res.status(401).send("Unauthorized");
+
+    await this.agendaService.removeRole(agendaData, role);
 
     return res.status(200).send("OK");
   };

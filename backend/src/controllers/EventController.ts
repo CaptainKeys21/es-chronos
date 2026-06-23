@@ -2,11 +2,12 @@ import type { Request, Response } from "express";
 import UserService from "../services/UserService.ts";
 import AgendaService from "../services/AgendaService.ts";
 import EventService from "../services/EventService.ts";
-import Event from "../models/Event.ts";
+import Event, { WeekDays } from "../models/Event.ts";
 
 type CreateReqBody = {
   name: string;
   date: string;
+  weekdays: string[];
 };
 
 type ReqParams = {
@@ -19,21 +20,21 @@ export class EventController {
   private readonly agendaService = AgendaService.instance;
   private readonly eventService = EventService.instance;
 
-  public getByName = (req: Request<ReqParams>, res: Response) => {
+  public getByName = async (req: Request<ReqParams>, res: Response) => {
     const { agenda, event } = req.params;
 
-    const agendaData = this.agendaService.getAgendaByName(agenda);
+    const agendaData = await this.agendaService.getAgendaByName(agenda);
 
     if (agendaData === null) return res.status(404).send("Agenda not Found");
 
-    const eventData = this.eventService.getEventByName(event, agendaData);
+    const eventData = await this.eventService.getEventByName(event, agendaData);
 
     if (eventData === null) return res.status(404).send("Not Found");
 
     return res.status(200).json(eventData.toJSON());
   };
 
-  public create = (
+  public create = async (
     req: Request<ReqParams, {}, CreateReqBody>,
     res: Response,
   ) => {
@@ -41,51 +42,60 @@ export class EventController {
 
     if (!username) return res.status(401).send("Unauthorized");
 
-    const { name, date } = req.body;
+    const { name, date, weekdays } = req.body;
 
     if (!name || !date) return res.status(400).send("Bad Request");
 
     const { agenda } = req.params;
 
-    const agendaData = this.agendaService.getAgendaByName(agenda);
+    const agendaData = await this.agendaService.getAgendaByName(agenda);
     if (!agendaData) return res.status(404).send("Agenda not found");
 
-    const user = this.userService.getUserByUsername(username);
+    const user = await this.userService.getUserByUsername(username);
     if (!user) return res.status(404).send("User not found");
 
     if (!agendaData.userCanEdit(user))
       return res.status(401).send("Unauthorized");
 
-    const event = new Event(name, new Date(date));
+    const wdEnum = weekdays
+      .map((v) => v in WeekDays && WeekDays[v as keyof typeof WeekDays])
+      .filter((v) => v !== false);
+    const event = new Event(name, new Date(date), wdEnum, "ORGANIZING");
     this.eventService.createEvent(event, agendaData);
 
     return res.status(201).send("Created");
   };
 
-  public edit = (req: Request<ReqParams, {}, CreateReqBody>, res: Response) => {
+  public edit = async (
+    req: Request<ReqParams, {}, CreateReqBody & { status: string }>,
+    res: Response,
+  ) => {
     const { username } = req;
 
     if (!username) return res.status(401).send("Unauthorized");
 
-    const { name, date } = req.body;
+    const { name, date, weekdays, status } = req.body;
 
     if (!name || !date) return res.status(400).send("Bad Request");
 
     const { agenda, event } = req.params;
 
-    const agendaData = this.agendaService.getAgendaByName(agenda);
+    const agendaData = await this.agendaService.getAgendaByName(agenda);
     if (!agendaData) return res.status(404).send("Agenda not found");
 
-    const user = this.userService.getUserByUsername(username);
+    const user = await this.userService.getUserByUsername(username);
     if (!user) return res.status(404).send("User not found");
 
-    const eventData = this.eventService.getEventByName(event, agendaData);
+    const eventData = await this.eventService.getEventByName(event, agendaData);
     if (eventData === null) return res.status(404).send("Not Found");
 
     if (!agendaData.userCanEdit(user))
       return res.status(401).send("Unauthorized");
 
-    const newEvent = new Event(name, new Date(date));
+    const wdEnum = weekdays
+      .map((v) => v in WeekDays && WeekDays[v as keyof typeof WeekDays])
+      .filter((v) => v !== false);
+    const newEvent = new Event(name, new Date(date), wdEnum, status);
     this.eventService.editEvent(eventData, newEvent, agendaData);
 
     return res.status(200).send("OK");

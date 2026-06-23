@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { UserController } from "../controllers/UserController.ts";
-import { EventController } from "../controllers/EventController.ts";
 import { TaskController } from "../controllers/TaskController.ts";
 
 export class TaskRouter {
@@ -24,6 +23,16 @@ export class TaskRouter {
       "/:task",
       UserController.authMiddleware,
       this.taskController.edit,
+    );
+    this.router.put(
+      "/:task/assign",
+      UserController.authMiddleware,
+      this.taskController.assign,
+    );
+    this.router.put(
+      "/:task/unassign",
+      UserController.authMiddleware,
+      this.taskController.unassign,
     );
   }
 }

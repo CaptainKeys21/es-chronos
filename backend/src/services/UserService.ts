@@ -1,4 +1,7 @@
-import type User from "../models/User.ts";
+import type { Knex } from "knex";
+import db from "../db/index.ts";
+import User from "../models/User.ts";
+import type { UserRow } from "../db/types.ts";
 
 export default class UserService {
   private static _instance: UserService | null = null;
@@ -11,16 +14,39 @@ export default class UserService {
     return this._instance;
   }
 
-  // Temporário, será usado como banco de dados
-  private readonly users: User[] = [];
-
   private constructor() {}
 
-  public createUser(user: User) {
-    this.users.push(user);
+  public async createUser(user: User) {
+    return await db<UserRow>("user").insert({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      pwd_hash: user.password,
+    });
   }
 
-  public getUserByUsername(username: string) {
-    return this.users.find((u) => u.username === username) || null;
+  public async getUserByUsername(username: string) {
+    const res = await db<UserRow>("user")
+      .select("*")
+      .where({ username })
+      .first();
+
+    if (!res) return null;
+
+    return User.fromDatabase(res);
+  }
+
+  public async getUserById(id: string) {
+    const res = await db<UserRow>("user").select("*").where({ id }).first();
+
+    if (!res) return null;
+
+    return User.fromDatabase(res);
+  }
+
+  public async getUsersByIds(ids: string[]) {
+    return (await db<UserRow>("user").select("*").whereIn("id", ids)).map((u) =>
+      User.fromDatabase(u),
+    );
   }
 }

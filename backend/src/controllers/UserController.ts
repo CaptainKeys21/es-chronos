@@ -18,13 +18,13 @@ export class UserController {
   private readonly userService = UserService.instance;
   private static readonly JWT_Secret = "algo_super_secreto";
 
-  public getByUsername = (req: Request, res: Response) => {
+  public getByUsername = async (req: Request, res: Response) => {
     const { username } = req.params;
 
     if (typeof username !== "string")
       return res.status(400).send("Bad Request");
 
-    const user = this.userService.getUserByUsername(username);
+    const user = await this.userService.getUserByUsername(username);
 
     if (user === null) return res.status(404).send("Not Found");
 
@@ -34,7 +34,7 @@ export class UserController {
   public create = (req: Request<{}, {}, CreateReqBody>, res: Response) => {
     try {
       const { username, email, password } = req.body;
-      const newUser = new User(username, email, password);
+      const newUser = new User(username, email, { value: password });
       this.userService.createUser(newUser);
       return res.status(201).send("Created");
     } catch (e) {
@@ -44,10 +44,13 @@ export class UserController {
     }
   };
 
-  public loginUser = (req: Request<{}, {}, LoginReqBody>, res: Response) => {
+  public loginUser = async (
+    req: Request<{}, {}, LoginReqBody>,
+    res: Response,
+  ) => {
     const { username, password } = req.body;
 
-    const user = this.userService.getUserByUsername(username);
+    const user = await this.userService.getUserByUsername(username);
 
     if (!user) return res.status(404).send("User not Found");
 

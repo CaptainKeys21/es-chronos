@@ -39,6 +39,35 @@ export class AgendaRouter {
       this.agendaController.edit,
     );
 
+    this.router.post(
+      "/:agenda/participant",
+      UserController.authMiddleware,
+      this.agendaController.addParticipant,
+    );
+
+    this.router.put(
+      "/:agenda/participant/:participant",
+      UserController.authMiddleware,
+      this.agendaController.editParticipant,
+    );
+
+    this.router.delete(
+      "/:agenda/participant/:username",
+      UserController.authMiddleware,
+      this.agendaController.removeParticipant,
+    );
+    this.router.post(
+      "/:agenda/role",
+      UserController.authMiddleware,
+      this.agendaController.addRole,
+    );
+
+    this.router.delete(
+      "/:agenda/role/:role",
+      UserController.authMiddleware,
+      this.agendaController.removeRole,
+    );
+
     this.router.use("/:agenda/event", this.eventRouter.router);
     this.router.use("/:agenda/task", this.taskRouter.router);
   }
