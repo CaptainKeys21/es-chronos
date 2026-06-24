@@ -1,6 +1,7 @@
 import express from "express";
 import { UserRouter } from "./routes/UserRouter.ts";
 import { AgendaRouter } from "./routes/AgendaRouter.ts";
+import { errorMiddleware } from "./errors/errorMiddleware.ts";
 
 const app = express();
 
@@ -13,6 +14,8 @@ app.use(express.json());
 
 app.use("/user", userRouter.router);
 app.use("/agenda", agendaRouter.router);
+
+app.use(errorMiddleware);
 
 app.listen(3000, () => {
   console.log("acessar http://localhost:3000");

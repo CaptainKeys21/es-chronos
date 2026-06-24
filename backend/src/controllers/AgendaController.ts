@@ -64,7 +64,7 @@ export class AgendaController {
 
     const newAgenda = new Agenda(name, user, timezone, enumVis);
 
-    this.agendaService.createAgenda(newAgenda);
+    await this.agendaService.createAgenda(newAgenda);
 
     return res.status(201).json(newAgenda);
   };

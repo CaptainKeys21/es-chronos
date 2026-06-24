@@ -3,6 +3,7 @@ import UserService from "../services/UserService.ts";
 import AgendaService from "../services/AgendaService.ts";
 import TaskService from "../services/TaskService.ts";
 import Task from "../models/Task.ts";
+import { StateError } from "../errors/stateError.ts";
 
 type CreateReqBody = {
   name: string;
@@ -96,8 +97,17 @@ export class TaskController {
     if (!agendaData.isUserOwner(user) || taskData.isOwner(user))
       return res.status(401).send("Unauthorized");
 
-    const newTask = new Task(name, new Date(date), progress, taskData.owner);
-    this.taskService.editTask(taskData, newTask, agendaData);
+    taskData.name = name;
+    taskData.deadline = new Date(date);
+    try {
+      taskData.progress = progress;
+    } catch (error) {
+      if (error instanceof StateError) {
+        res.status(400).send(error.message);
+      }
+    }
+
+    this.taskService.editTask(taskData, agendaData);
 
     return res.status(200).send("OK");
   };

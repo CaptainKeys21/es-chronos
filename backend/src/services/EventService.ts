@@ -29,17 +29,15 @@ export default class EventService {
     agenda.addEvent(event);
   }
 
-  public async editEvent(oldEvent: Event, newEvent: Event, agenda: Agenda) {
+  public async editEvent(event: Event, agenda: Agenda) {
     await db<EventRow>("event")
       .update({
-        name: newEvent.name,
-        date: newEvent.date,
-        status: newEvent.status,
-        weekdays: newEvent.weekdays.join(","),
+        name: event.name,
+        date: event.date,
+        status: event.status,
+        weekdays: event.weekdays.join(","),
       })
-      .where({ id: oldEvent.id, agenda_id: agenda.id });
-
-    agenda.editEvent(oldEvent, newEvent);
+      .where({ id: event.id, agenda_id: agenda.id });
   }
 
   public async getEventsByAgendaId(agenda_id: string): Promise<Event[]> {

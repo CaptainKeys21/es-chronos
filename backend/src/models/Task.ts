@@ -2,6 +2,7 @@ import { v4 } from "uuid";
 import type { WithId } from "./WithId.ts";
 import type { TaskRow } from "../db/types.ts";
 import type User from "./User.ts";
+import { StateError } from "../errors/stateError.ts";
 
 export interface TaskState {
   readonly status: "TODO" | "IN_PROGRESS" | "COMPLETED";
@@ -56,7 +57,10 @@ export class CompletedState implements TaskState {
   }
 
   set progress(value: number) {
-    throw new Error("Tarefa completa não pode ter seu progresso modificado");
+    throw new StateError(
+      this.status,
+      "Tarefa completa não pode ter seu progresso modificado",
+    );
   }
 }
 

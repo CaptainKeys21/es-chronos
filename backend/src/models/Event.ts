@@ -1,6 +1,7 @@
 import { v4 } from "uuid";
 import type { WithId } from "./WithId.ts";
 import type { EventRow } from "../db/types.ts";
+import { StateError } from "../errors/stateError.ts";
 
 export const WeekDays = {
   Domingo: 0,
@@ -49,7 +50,8 @@ export class OrganizingState implements EventState {
   }
 
   complete(): void {
-    throw new Error(
+    throw new StateError(
+      this.status,
       "Não é possível concluir um evento que ainda está em organização diretamente.",
     );
   }
@@ -62,25 +64,28 @@ export class InProgressState implements EventState {
 
   // Bloqueia as edições neste estado
   set name(name: string) {
-    throw new Error(
+    throw new StateError(
+      this.status,
       "Não é possível alterar o nome de um evento que já está em andamento.",
     );
   }
 
   set date(date: Date) {
-    throw new Error(
+    throw new StateError(
+      this.status,
       "Não é possível alterar a data de um evento que já está em andamento.",
     );
   }
 
   set weekdays(weekdays: WeekDays[]) {
-    throw new Error(
+    throw new StateError(
+      this.status,
       "Não é possível alterar os dias da semana de um evento que já está em andamento.",
     );
   }
 
   start(): void {
-    throw new Error("O evento já está em andamento.");
+    throw new StateError(this.status, "O evento já está em andamento.");
   }
 
   complete(): void {
@@ -95,25 +100,35 @@ export class CompletedState implements EventState {
 
   // Bloqueia todas as edições e transições
   set name(name: string) {
-    throw new Error("Não é possível alterar o nome de um evento concluído.");
+    throw new StateError(
+      this.status,
+      "Não é possível alterar o nome de um evento concluído.",
+    );
   }
 
   set date(date: Date) {
-    throw new Error("Não é possível alterar a data de um evento concluído.");
+    throw new StateError(
+      this.status,
+      "Não é possível alterar a data de um evento concluído.",
+    );
   }
 
   set weekdays(weekdays: WeekDays[]) {
-    throw new Error(
+    throw new StateError(
+      this.status,
       "Não é possível alterar os dias da semana de um evento concluído.",
     );
   }
 
   start(): void {
-    throw new Error("Não é possível iniciar um evento que já foi concluído.");
+    throw new StateError(
+      this.status,
+      "Não é possível iniciar um evento que já foi concluído.",
+    );
   }
 
   complete(): void {
-    throw new Error("O evento já está concluído.");
+    throw new StateError(this.status, "O evento já está concluído.");
   }
 }
 

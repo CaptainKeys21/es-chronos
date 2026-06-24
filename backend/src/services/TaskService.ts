@@ -31,16 +31,15 @@ export default class TaskService {
     agenda.addTask(task);
   }
 
-  public async editTask(oldTask: Task, newTask: Task, agenda: Agenda) {
+  public async editTask(task: Task, agenda: Agenda) {
     await db<TaskRow>("task")
       .update({
-        name: newTask.name,
-        progress: newTask.progress,
-        deadline: newTask.deadline,
-        owner_id: newTask.owner?.id,
+        name: task.name,
+        progress: task.progress,
+        deadline: task.deadline,
+        owner_id: task.owner?.id,
       })
-      .where({ id: oldTask.id });
-    agenda.editTask(oldTask, newTask);
+      .where({ id: task.id });
   }
 
   public async getTasksByAgendaId(agenda_id: string): Promise<Task[]> {

@@ -3,6 +3,7 @@ import UserService from "../services/UserService.ts";
 import AgendaService from "../services/AgendaService.ts";
 import EventService from "../services/EventService.ts";
 import Event, { WeekDays } from "../models/Event.ts";
+import { StateError } from "../errors/stateError.ts";
 
 type CreateReqBody = {
   name: string;
@@ -67,7 +68,11 @@ export class EventController {
   };
 
   public edit = async (
-    req: Request<ReqParams, {}, CreateReqBody & { status: string }>,
+    req: Request<
+      ReqParams,
+      {},
+      CreateReqBody & { status: "ORGANIZING" | "IN_PROGRESS" | "COMPLETED" }
+    >,
     res: Response,
   ) => {
     const { username } = req;
@@ -95,8 +100,31 @@ export class EventController {
     const wdEnum = weekdays
       .map((v) => v in WeekDays && WeekDays[v as keyof typeof WeekDays])
       .filter((v) => v !== false);
-    const newEvent = new Event(name, new Date(date), wdEnum, status);
-    this.eventService.editEvent(eventData, newEvent, agendaData);
+
+    try {
+      eventData.name = name;
+      eventData.date = new Date(date);
+      eventData.weekdays = wdEnum;
+
+      switch (status) {
+        case "ORGANIZING":
+          break;
+        case "IN_PROGRESS":
+          if (eventData.status !== status) eventData.start();
+          break;
+        case "COMPLETED":
+          if (eventData.status !== status) eventData.complete();
+          break;
+        default:
+          res.status(400).send("State inválido");
+      }
+    } catch (error) {
+      if (error instanceof StateError) {
+        res.status(400).send(error.message);
+      }
+    }
+
+    this.eventService.editEvent(eventData, agendaData);
 
     return res.status(200).send("OK");
   };
