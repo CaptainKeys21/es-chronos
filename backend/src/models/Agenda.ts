@@ -95,7 +95,7 @@ export default class Agenda implements WithId {
     this._visibility = visibility;
   }
 
-  private isUserParticipating(user: User) {
+  public isUserParticipating(user: User) {
     return (
       this.isUserOwner(user) ||
       this.participants.some((u) => u.user.id === user.id)

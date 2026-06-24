@@ -94,7 +94,7 @@ export class TaskController {
     if (!agendaData.userCanEdit(user))
       return res.status(401).send("Unauthorized");
 
-    if (!agendaData.isUserOwner(user) || taskData.isOwner(user))
+    if (!agendaData.isUserOwner(user) && !taskData.isOwner(user))
       return res.status(401).send("Unauthorized");
 
     taskData.name = name;
@@ -138,7 +138,8 @@ export class TaskController {
 
     const userToBeAssigned = await this.userService.getUserByUsername(username);
 
-    if (!userToBeAssigned) return res.status(400).send("Bad Request");
+    if (!userToBeAssigned || !agendaData.isUserParticipating(userToBeAssigned))
+      return res.status(400).send("Bad Request");
 
     await this.taskService.assignUser(taskData, userToBeAssigned);
 

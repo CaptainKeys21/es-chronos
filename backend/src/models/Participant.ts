@@ -73,9 +73,7 @@ export default class Participant implements WithId {
   }
 
   public static fromDatabase(row: ParticipantRow, roles: string[], user: User) {
-    const permissions = row.permissions
-      .split(",")
-      .map((perm) => Permission[perm as keyof typeof Permission]);
+    const permissions = row.permissions.split(",").map((perm) => Number(perm));
     return new Participant(user, permissions, roles, row.id);
   }
 }
